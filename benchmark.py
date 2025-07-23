@@ -397,7 +397,7 @@ def benchmark(args):
             mask, points = mask_utils.decode(anno["segmentation"]), anno["point_coords"]
             mask[mask > 0] = 255
             points = resize_points(points, ratio)
-            infer_mask, _ = decoder_inference(decoder, points, img, image_embeddings, high_res_features_1, high_res_features_2, j, i, args.dump_tensor)
+            infer_mask, _ = decoder_inference(decoder, points, img, image_embeddings, high_res_features_1, high_res_features_2, j, i, args)
             infer_mask = resize_back_infer_mask(infer_mask, ratio, img_h, img_w)
             j_score = db_eval_iou(mask, infer_mask)
             f_score = f_measure(mask, infer_mask)
@@ -415,7 +415,7 @@ def main():
     parser.add_argument("--data_dir", type=str, help="path")
     parser.add_argument("--enc_onnx", type=str, help="path")
     parser.add_argument("--dec_onnx", type=str, help="path")
-    parser.add_argument("--dump_tensor", action='store_true', help="dump tensor enable")
+    parser.add_argument("--dump_tensor", action='store_true', default=False, help="dump tensor enable")
     parser.add_argument("--dump_dir", type=str, help="dump tensor path")
     args = parser.parse_args()
 

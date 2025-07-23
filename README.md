@@ -213,6 +213,16 @@ Third-party code: we use a GPU-based connected component algorithm adapted from 
 
 If you use SAM 2 or the SA-V dataset in your research, please use the following BibTeX entry.
 
+## export onnx
+```
+python export_onnx.py --outdir ./ --config D:\code\sam2\sam2\configs\sam2.1\sam2.1_hiera_l.yaml --checkpoint D:\code\sam2\checkpoints\sam2.1_hiera_large.pt --mode export
+```
+
+## benchmark
+```
+python benchmark.py --data_dir C:\Users\Administrator\Downloads\sam_dataset --enc_onnx image_encoder.onnx --dec_onnx image_decoder.onnx
+```
+
 ```bibtex
 @article{ravi2024sam2,
   title={SAM 2: Segment Anything in Images and Videos},

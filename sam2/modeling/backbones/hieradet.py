@@ -270,6 +270,12 @@ class Hiera(nn.Module):
                 chkpt = torch.load(f, map_location="cpu")
             logging.info("loading Hiera", self.load_state_dict(chkpt, strict=False))
 
+    def precompute_pos_embeding(self):
+        #####attention: rewrite by guoqiqaxu########
+        #-------------------------------------------
+        self.pos_embeding_256_256 = nn.Parameter(self._get_pos_embed((256, 256)))
+        ############################################
+
     def _get_pos_embed(self, hw: Tuple[int, int]) -> torch.Tensor:
         h, w = hw
         window_embed = self.pos_embed_window
@@ -284,8 +290,12 @@ class Hiera(nn.Module):
         x = self.patch_embed(x)
         # x: (B, H, W, C)
 
+        #####attention: rewrite by guoqiqaxu########
         # Add pos embed
-        x = x + self._get_pos_embed(x.shape[1:3])
+        # x = x + self._get_pos_embed(x.shape[1:3])
+        # ------------------------------------------
+        x = x + self.pos_embeding_256_256
+        ############################################
 
         outputs = []
         for i, blk in enumerate(self.blocks):

@@ -30,8 +30,11 @@ class ImageEncoder(nn.Module):
         backbone_out = self.model.forward_image(input)
         _, vision_feats, _, _ = self.model._prepare_backbone_features(backbone_out)
         # Add no_mem_embed, which is added to the lowest rest feat. map during training on videos
-        if self.model.directly_add_no_mem_embed:
-            vision_feats[-1] = vision_feats[-1] + self.model.no_mem_embed
+        # print(f"add no mem embed:{self.model.directly_add_no_mem_embed}")
+        # if self.model.directly_add_no_mem_embed:
+        #     print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+        #     vision_feats[-1] = vision_feats[-1] + self.model.no_mem_embed
+        vision_feats[-1] = vision_feats[-1] + self.model.no_mem_embed
         feats = [
             feat.permute(1, 2, 0).view(1, -1, *feat_size)
             for feat, feat_size in zip(vision_feats[::-1], self.bb_feat_sizes[::-1])
@@ -135,16 +138,22 @@ def export_image_encoder(model, onnx_path):
     onnx_path = os.path.join(onnx_path, "image_encoder.onnx")
     input_img = torch.randn(1, 3,1024, 1024)
     output_names = ["image_embeddings", "high_res_features1", "high_res_features2"]
+    model.model.image_encoder.trunk.precompute_pos_embeding()
     torch.onnx.export(
         model,
         input_img,
         onnx_path,
         export_params=True,
-        opset_version=17,
+        # opset_version=17,
         do_constant_folding=True,
         input_names=["input"],
         output_names=output_names,
     )
+    # original_model = onnx.load(onnx_path)
+    # simplified_model, check = simplify(original_model)
+    # onnx.save(simplified_model, onnx_path)
+    # onnx_model = onnx.load(onnx_path)
+    # onnx.checker.check_model(onnx_model)
 
 
 def export_image_decoder(model, onnx_path):
