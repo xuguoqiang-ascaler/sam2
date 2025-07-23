@@ -106,7 +106,7 @@ def encoder_inference(encoder, img):
     return image_embeddings, high_res_features_1, high_res_features_2
 
 
-def decoder_inference(decoder, points, img, image_embedings, high_res_features_1, high_res_features_2, idx = 0, obj_idx =0):
+def decoder_inference(decoder, points, img, image_embedings, high_res_features_1, high_res_features_2, idx=0, obj_idx=0, args=None):
     assert len(points) <= 8
 
     img_h, img_w = img.shape[2:]
@@ -137,22 +137,24 @@ def decoder_inference(decoder, points, img, image_embedings, high_res_features_1
     # print(mask_input.shape)
     ori_size = np.array(img.shape[2:], dtype=np.int64)
 
-    image_embed_tensor = torch.from_numpy(image_embedings)
-    high_res_features_1_tensor = torch.from_numpy(high_res_features_1)
-    high_res_features_2_tensor = torch.from_numpy(high_res_features_2)
-    points_tensor = torch.from_numpy(points)
-    labels_tensor = torch.from_numpy(labels)
-    mask_input_tensor = torch.from_numpy(mask_input)
-    has_mask_input_tensor = torch.from_numpy(has_mask_input)
-    ori_size_tensor = torch.from_numpy(ori_size)
-    torch.save(image_embed_tensor, f"./calib_data/image_embed_tensor_test_{idx}_{obj_idx}.pt")
-    torch.save(high_res_features_1_tensor, f"./calib_data/high_res_features_1_tensor_test_{idx}_{obj_idx}.pt")
-    torch.save(high_res_features_2_tensor, f"./calib_data/high_res_features_2_tensor_test_{idx}_{obj_idx}.pt")
-    torch.save(points_tensor, f"./calib_data/point_tensor_test_{idx}_{obj_idx}.pt")
-    torch.save(labels_tensor, f"./calib_data/labels_tensor_test_{idx}_{obj_idx}.pt")
-    torch.save(mask_input_tensor, f"./calib_data/mask_input_tensor_test_{idx}_{obj_idx}.pt")
-    torch.save(has_mask_input_tensor, f"./calib_data/has_mask_input_tensor_test_{idx}_{obj_idx}.pt")
-    torch.save(ori_size_tensor, f"./calib_data/ori_size_tensor_test_{idx}_{obj_idx}.pt")
+    if args.dump_tensor:
+        image_embed_tensor = torch.from_numpy(image_embedings)
+        high_res_features_1_tensor = torch.from_numpy(high_res_features_1)
+        high_res_features_2_tensor = torch.from_numpy(high_res_features_2)
+        points_tensor = torch.from_numpy(points)
+        labels_tensor = torch.from_numpy(labels)
+        mask_input_tensor = torch.from_numpy(mask_input)
+        has_mask_input_tensor = torch.from_numpy(has_mask_input)
+        ori_size_tensor = torch.from_numpy(ori_size)
+
+        torch.save(image_embed_tensor, os.path.join(args.dump_dir, f"image_embed_tensor_{idx}_{obj_idx}.pt"))
+        torch.save(high_res_features_1_tensor, os.path.join(args.dump_dir, f"high_res_features_1_tensor_{idx}_{obj_idx}.pt"))
+        torch.save(high_res_features_2_tensor, os.path.join(args.dump_dir, f"high_res_features_2_tensor_{idx}_{obj_idx}.pt"))
+        torch.save(points_tensor, os.path.join(args.dump_dir, f"point_tensor_{idx}_{obj_idx}.pt"))
+        torch.save(labels_tensor, os.path.join(args.dump_dir, f"labels_tensor_{idx}_{obj_idx}.pt"))
+        torch.save(mask_input_tensor, os.path.join(args.dump_dir, f"mask_input_tensor_{idx}_{obj_idx}.pt"))
+        torch.save(has_mask_input_tensor, os.path.join(args.dump_dir, f"has_mask_input_tensor_{idx}_{obj_idx}.pt"))
+        torch.save(ori_size_tensor, os.path.join(args.dump_dir, f"ori_size_tensor_{idx}_{obj_idx}.pt"))
 
 
     inputs = [
@@ -385,7 +387,8 @@ def benchmark(args):
         img = normalize_image(img)
 
         img_tensor = torch.from_numpy(img)
-        torch.save(img_tensor, f"./calib_data/img_{j}.pt")
+        if args.dump_tensor:
+            torch.save(img_tensor, os.path.join(args.dump_dir, f"img_{j}.pt"))
         image_embeddings, high_res_features_1, high_res_features_2 = encoder_inference(encoder, img)
 
         i = 0
@@ -394,7 +397,7 @@ def benchmark(args):
             mask, points = mask_utils.decode(anno["segmentation"]), anno["point_coords"]
             mask[mask > 0] = 255
             points = resize_points(points, ratio)
-            infer_mask, _ = decoder_inference(decoder, points, img, image_embeddings, high_res_features_1, high_res_features_2, j, i)
+            infer_mask, _ = decoder_inference(decoder, points, img, image_embeddings, high_res_features_1, high_res_features_2, j, i, args.dump_tensor)
             infer_mask = resize_back_infer_mask(infer_mask, ratio, img_h, img_w)
             j_score = db_eval_iou(mask, infer_mask)
             f_score = f_measure(mask, infer_mask)
@@ -412,6 +415,8 @@ def main():
     parser.add_argument("--data_dir", type=str, help="path")
     parser.add_argument("--enc_onnx", type=str, help="path")
     parser.add_argument("--dec_onnx", type=str, help="path")
+    parser.add_argument("--dump_tensor", action='store_true', help="dump tensor enable")
+    parser.add_argument("--dump_dir", type=str, help="dump tensor path")
     args = parser.parse_args()
 
     benchmark(args)
