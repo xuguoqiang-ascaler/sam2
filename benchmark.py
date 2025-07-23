@@ -106,7 +106,7 @@ def encoder_inference(encoder, img):
     return image_embeddings, high_res_features_1, high_res_features_2
 
 
-def decoder_inference(decoder, points, img, image_embedings, high_res_features_1, high_res_features_2):
+def decoder_inference(decoder, points, img, image_embedings, high_res_features_1, high_res_features_2, idx = 0, obj_idx =0):
     assert len(points) <= 8
 
     img_h, img_w = img.shape[2:]
@@ -135,8 +135,26 @@ def decoder_inference(decoder, points, img, image_embedings, high_res_features_1
     # print(points.shape)
     # print(labels.shape)
     # print(mask_input.shape)
-
     ori_size = np.array(img.shape[2:], dtype=np.int64)
+
+    image_embed_tensor = torch.from_numpy(image_embedings)
+    high_res_features_1_tensor = torch.from_numpy(high_res_features_1)
+    high_res_features_2_tensor = torch.from_numpy(high_res_features_2)
+    points_tensor = torch.from_numpy(points)
+    labels_tensor = torch.from_numpy(labels)
+    mask_input_tensor = torch.from_numpy(mask_input)
+    has_mask_input_tensor = torch.from_numpy(has_mask_input)
+    ori_size_tensor = torch.from_numpy(ori_size)
+    torch.save(image_embed_tensor, f"./calib_data/image_embed_tensor_test_{idx}_{obj_idx}.pt")
+    torch.save(high_res_features_1_tensor, f"./calib_data/high_res_features_1_tensor_test_{idx}_{obj_idx}.pt")
+    torch.save(high_res_features_2_tensor, f"./calib_data/high_res_features_2_tensor_test_{idx}_{obj_idx}.pt")
+    torch.save(points_tensor, f"./calib_data/point_tensor_test_{idx}_{obj_idx}.pt")
+    torch.save(labels_tensor, f"./calib_data/labels_tensor_test_{idx}_{obj_idx}.pt")
+    torch.save(mask_input_tensor, f"./calib_data/mask_input_tensor_test_{idx}_{obj_idx}.pt")
+    torch.save(has_mask_input_tensor, f"./calib_data/has_mask_input_tensor_test_{idx}_{obj_idx}.pt")
+    torch.save(ori_size_tensor, f"./calib_data/ori_size_tensor_test_{idx}_{obj_idx}.pt")
+
+
     inputs = [
         image_embedings, 
         high_res_features_1, 
@@ -147,6 +165,7 @@ def decoder_inference(decoder, points, img, image_embedings, high_res_features_1
         has_mask_input, 
         ori_size
     ]
+    
     outputs = decoder.run(
         decoder_output_names,
         {
@@ -180,7 +199,6 @@ def jaccard(gt_mask, pred_mask):
     intersection = np.logical_and(gt_mask, pred_mask).sum()
     union = np.logical_or(gt_mask, pred_mask).sum()
     return intersection / union if union > 0 else 1.0
-
 
 
 def f_measure(foreground_mask, gt_mask, void_pixels=None, bound_th=0.008):
@@ -359,18 +377,24 @@ def benchmark(args):
     j_f_obj_num = 0
     miou_sum = 0
     json_list = get_all_json_file(args.data_dir)
+    j = 0
     for json_file in json_list:
+        j = j + 1
         file_name, img_w, img_h, annotations = get_item(json_file)
         img, ratio = resize_image(os.path.join(args.data_dir, file_name))
         img = normalize_image(img)
+
+        img_tensor = torch.from_numpy(img)
+        torch.save(img_tensor, f"./calib_data/img_{j}.pt")
         image_embeddings, high_res_features_1, high_res_features_2 = encoder_inference(encoder, img)
+
         i = 0
         for anno in annotations:
             i = i + 1
             mask, points = mask_utils.decode(anno["segmentation"]), anno["point_coords"]
             mask[mask > 0] = 255
             points = resize_points(points, ratio)
-            infer_mask, _ = decoder_inference(decoder, points, img, image_embeddings, high_res_features_1, high_res_features_2)
+            infer_mask, _ = decoder_inference(decoder, points, img, image_embeddings, high_res_features_1, high_res_features_2, j, i)
             infer_mask = resize_back_infer_mask(infer_mask, ratio, img_h, img_w)
             j_score = db_eval_iou(mask, infer_mask)
             f_score = f_measure(mask, infer_mask)
@@ -380,7 +404,7 @@ def benchmark(args):
             j_f_obj_num += 1
             j_f_score = j_f_score_sum / j_f_obj_num
             miou = miou_sum / j_f_obj_num
-            print(f"file_name:{file_name}, obj_num:{i}, cur_j:{j_score} cur_f:{f_score} avg miou:{miou} avg j&f:{j_f_score}")
+            print(f"file_name:{file_name}, image_num:{j} obj_num:{i}, cur_j:{j_score} cur_f:{f_score} avg miou:{miou} avg j&f:{j_f_score}")
 
 
 def main():
